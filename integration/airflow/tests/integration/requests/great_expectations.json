@@ -116,7 +116,7 @@
         ],
         "job": {
             "facets": {},
-            "name": "expectations.385fd3237746d1ba6797bc5f132fc868",
+            "name": "expectations.ge_sqlite_run",
             "namespace": "food_delivery"
         },
         "outputs": [],
@@ -126,7 +126,6 @@
                     "batch_kwargs": {
                         "data_asset_name": "sqlite__data",
                         "datasource": "sqlite__data",
-                        "path": "/opt/data/great_expectations/data",
                         "table": "transactions"
                     },
                     "expectation_suite_meta": {
@@ -258,7 +257,7 @@
         ],
         "job": {
             "facets": {},
-            "name": "expectations.e6bad0549953948db0a63c463b7e4c7a",
+            "name": "expectations.ge_pandas_run",
             "namespace": "food_delivery"
         },
         "outputs": [],
@@ -400,7 +399,7 @@
         ],
         "job": {
             "facets": {},
-            "name": "expectations.2980d102bd5a4ba1225e245a6c5c4f11",
+            "name": "expectations.ge_bad_sqlite_run",
             "namespace": "food_delivery"
         },
         "outputs": [],

@@ -28,6 +28,7 @@ from openlineage.common.provider.great_expectations.results import EXPECTATIONS_
     COLUMN_EXPECTATIONS_PARSER, \
     GreatExpectationsAssertion
 from openlineage.common.sql import SqlParser
+from openlineage.common.utils import get_from_nullable_chain
 
 
 class OpenLineageValidationAction(ValidationAction):
@@ -36,8 +37,9 @@ class OpenLineageValidationAction(ValidationAction):
 
     Openlineage host parameters can be passed in as constructor arguments or environment variables
     will be searched. Job information can optionally be passed in as constructor arguments or the
-    great expectations suite name and batch identifier will be used as the job name
-    (the namespace should be passed in as either a constructor arg or as an environment variable).
+    great expectations suite name and either run_name or batch identifier will be used as the job
+    name - the namespace should be passed in as either a constructor arg or as an environment
+    variable.
 
     The data_asset will be inspected to determine the dataset source- SqlAlchemy datasets and
     Pandas datasets are supported. SqlAlchemy datasets are typically treated as other SQL data
@@ -125,8 +127,14 @@ class OpenLineageValidationAction(ValidationAction):
 
         job_name = self.job_name
         if self.job_name is None:
-            job_name = validation_result_suite.meta["expectation_suite_name"] + '.' \
-                       + validation_result_suite_identifier.batch_identifier
+            job_name = validation_result_suite.meta["expectation_suite_name"]
+            run_name = get_from_nullable_chain(
+                validation_result_suite.meta, ['run_id', 'run_name']
+            )
+            if run_name:
+                job_name += '.' + run_name
+            else:
+                job_name += '.' + validation_result_suite_identifier.batch_identifier
         run_event = RunEvent(
             eventType=RunState.COMPLETE,
             eventTime=datetime.now().isoformat(),

@@ -29,9 +29,14 @@ log = logging.getLogger(__name__)
 airflow_db_conn = None
 
 
+def retry_if_not_failed(exception):
+    return not isinstance(exception, SystemExit)
+
+
 @retry(
     wait_exponential_multiplier=1000,
-    wait_exponential_max=10000
+    wait_exponential_max=10000,
+    retry_on_exception=retry_if_not_failed
 )
 def wait_for_dag(dag_id):
     log.info(
