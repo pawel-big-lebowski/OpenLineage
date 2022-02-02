@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.NonNull;
+import org.apache.spark.scheduler.SparkListenerEvent;
 import org.apache.spark.sql.catalyst.TableIdentifier;
 import org.apache.spark.sql.catalyst.catalog.CatalogTable;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
@@ -99,6 +100,17 @@ public abstract class QueryPlanVisitor<T extends LogicalPlan, D extends OpenLine
       return isAssignable;
     }
     return false;
+  }
+
+  /**
+   * Allows filtering visitors run per specific SparkListenerEvent like SparkListenerJobStart or
+   * SparkListenerSQLExecutionStart
+   *
+   * @param event
+   * @return
+   */
+  public boolean matchesEvent(SparkListenerEvent event) {
+    return true;
   }
 
   @Override

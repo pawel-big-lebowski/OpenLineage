@@ -13,11 +13,14 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.NonNull;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.spark.scheduler.SparkListenerEvent;
+import org.apache.spark.scheduler.SparkListenerJobStart;
 import org.apache.spark.sql.catalyst.analysis.ResolvedTable;
 import org.apache.spark.sql.catalyst.plans.logical.DropTable;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.connector.catalog.Identifier;
 import org.apache.spark.sql.connector.catalog.TableCatalog;
+import org.apache.spark.sql.execution.ui.SparkListenerSQLExecutionStart;
 import org.apache.spark.sql.types.StructType;
 
 @Slf4j
@@ -47,5 +50,16 @@ public class DropTableVisitor extends QueryPlanVisitor<DropTable, OpenLineage.Ou
     } else {
       return Collections.emptyList();
     }
+  }
+
+  /**
+   * Allows filtering visitors run per specific SparkListenerEvent like
+   *
+   * @param event
+   * @return
+   */
+  public boolean matchesEvent(SparkListenerEvent event) {
+    return event instanceof SparkListenerJobStart
+        || event instanceof SparkListenerSQLExecutionStart;
   }
 }
