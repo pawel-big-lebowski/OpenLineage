@@ -112,6 +112,28 @@ public abstract class DatasetFactory<D extends OpenLineage.Dataset> {
   }
 
   /**
+   * Given a {@link URI}, construct a valid {@link OpenLineage.Dataset} following the expected
+   * naming conventions.
+   *
+   * @param outputPath
+   * @param schema
+   * @return
+   */
+  public D getDataset(
+      URI outputPath, StructType schema, Map<String, OpenLineage.DatasetFacet> facets) {
+    String namespace = PlanUtils.namespaceUri(outputPath);
+    OpenLineage.DatasetFacetsBuilder builder =
+        openLineage
+            .newDatasetFacetsBuilder()
+            .schema(PlanUtils.schemaFacet(openLineage, schema))
+            .dataSource(PlanUtils.datasourceFacet(openLineage, namespace));
+
+    facets.forEach((key, facet) -> builder.put(key, facet));
+
+    return getDataset(outputPath.getPath(), namespace, builder.build());
+  }
+
+  /**
    * Construct a {@link io.openlineage.client.OpenLineage.Dataset} with the given {@link
    * DatasetIdentifier} and schema.
    *

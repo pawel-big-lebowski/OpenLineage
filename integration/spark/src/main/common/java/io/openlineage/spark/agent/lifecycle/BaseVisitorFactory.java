@@ -39,7 +39,6 @@ abstract class BaseVisitorFactory implements VisitorFactory {
       List<PartialFunction<LogicalPlan, List<D>>> getBaseCommonVisitors(
           OpenLineageContext context, DatasetFactory<D> factory) {
     List<PartialFunction<LogicalPlan, List<D>>> list = new ArrayList<>();
-    list.add(new LogicalRelationVisitor(context, factory));
     list.add(new LogicalRDDVisitor(context, factory));
     if (BigQueryNodeVisitor.hasBigQueryClasses()) {
       list.add(new BigQueryNodeVisitor(context, factory));
@@ -60,21 +59,26 @@ abstract class BaseVisitorFactory implements VisitorFactory {
   @Override
   public List<PartialFunction<LogicalPlan, List<InputDataset>>> getInputVisitors(
       OpenLineageContext context) {
+    DatasetFactory<InputDataset> factory = DatasetFactory.input(context.getOpenLineage());
     List<PartialFunction<LogicalPlan, List<OpenLineage.InputDataset>>> inputVisitors =
-        new ArrayList<>(getCommonVisitors(context, DatasetFactory.input(context.getOpenLineage())));
+        new ArrayList<>(getCommonVisitors(context, factory));
     inputVisitors.add(new CommandPlanVisitor(context));
+    inputVisitors.add(new LogicalRelationVisitor(context, factory, true));
     return inputVisitors;
   }
 
   @Override
   public List<PartialFunction<LogicalPlan, List<OpenLineage.OutputDataset>>> getOutputVisitors(
       OpenLineageContext context) {
+    DatasetFactory<OpenLineage.OutputDataset> factory =
+        DatasetFactory.output(context.getOpenLineage());
 
     List<PartialFunction<LogicalPlan, List<OpenLineage.OutputDataset>>> outputCommonVisitors =
-        getCommonVisitors(context, DatasetFactory.output(context.getOpenLineage()));
+        getCommonVisitors(context, factory);
     List<PartialFunction<LogicalPlan, List<OpenLineage.OutputDataset>>> list =
         new ArrayList<>(outputCommonVisitors);
 
+    list.add(new LogicalRelationVisitor(context, factory, false));
     list.add(new InsertIntoDataSourceDirVisitor(context));
     list.add(new InsertIntoDataSourceVisitor(context));
     list.add(new InsertIntoHadoopFsRelationVisitor(context));
