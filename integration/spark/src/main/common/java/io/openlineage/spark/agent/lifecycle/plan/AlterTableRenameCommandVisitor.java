@@ -1,7 +1,6 @@
 package io.openlineage.spark.agent.lifecycle.plan;
 
 import io.openlineage.client.OpenLineage;
-import io.openlineage.spark.agent.facets.PreviousTableNameFacet;
 import io.openlineage.spark.agent.util.DatasetIdentifier;
 import io.openlineage.spark.agent.util.PathUtils;
 import io.openlineage.spark.agent.util.PlanUtils;
@@ -37,11 +36,24 @@ public class AlterTableRenameCommandVisitor
     DatasetIdentifier di = PathUtils.fromCatalogTable(table);
 
     AlterTableRenameCommand alterTableRenameCommand = (AlterTableRenameCommand) x;
-    String previousPath =
+    String previousName =
         di.getName()
             .replace(
                 alterTableRenameCommand.newName().table(),
                 alterTableRenameCommand.oldName().table());
+
+    OpenLineage.LifecycleStateChangeDatasetFacet lifecycleStateChangeDatasetFacet =
+        context
+            .getOpenLineage()
+            .newLifecycleStateChangeDatasetFacetBuilder()
+            .lifecycleStateChange("RENAME")
+            .previousIdentifier(
+                new OpenLineage.LifecycleStateChangeDatasetFacetPreviousIdentifierBuilder()
+                    .name(previousName)
+                    .namespace(di.getNamespace()) // namespace renaming is not allowed in
+                    // AlterTableRenameCommand
+                    .build())
+            .build();
 
     DatasetFactory<OpenLineage.OutputDataset> factory = outputDataset();
     return Collections.singletonList(
@@ -50,7 +62,7 @@ public class AlterTableRenameCommandVisitor
             new OpenLineage.DatasetFacetsBuilder()
                 .schema(PlanUtils.schemaFacet(context.getOpenLineage(), table.schema()))
                 .dataSource(PlanUtils.datasourceFacet(context.getOpenLineage(), di.getNamespace()))
-                .put("previousTableName", new PreviousTableNameFacet(previousPath, di.getName()))
+                .lifecycleStateChange(lifecycleStateChangeDatasetFacet)
                 .build()));
   }
 }
