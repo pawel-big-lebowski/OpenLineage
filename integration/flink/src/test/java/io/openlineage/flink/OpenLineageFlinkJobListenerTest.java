@@ -10,7 +10,6 @@ import io.openlineage.flink.agent.lifecycle.ExecutionContext;
 import io.openlineage.flink.agent.lifecycle.FlinkExecutionContext;
 import java.util.ArrayList;
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.core.execution.JobClient;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -19,11 +18,10 @@ public class OpenLineageFlinkJobListenerTest {
   @Test
   void shouldEmitOnlyOneRunEventOnJobSubmitted() {
     JobID jobId = mock(JobID.class);
-    JobClient jobClient = mock(JobClient.class);
     EventEmitter emitter = mock(EventEmitter.class);
-    ExecutionContext context = new FlinkExecutionContext(jobId, emitter);
+    ExecutionContext context = new FlinkExecutionContext(jobId, emitter, new ArrayList<>());
 
-    context.onJobSubmitted(jobClient, new ArrayList<>());
+    context.onJobSubmitted();
 
     ArgumentCaptor<OpenLineage.RunEvent> lineageEvent =
         ArgumentCaptor.forClass(OpenLineage.RunEvent.class);

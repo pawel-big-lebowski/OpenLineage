@@ -2,7 +2,6 @@ package io.openlineage.flink;
 
 import io.openlineage.flink.agent.ArgumentParser;
 import io.openlineage.flink.agent.EventEmitter;
-import io.openlineage.flink.agent.lifecycle.ExecutionContext;
 import io.openlineage.flink.agent.lifecycle.FlinkExecutionContext;
 import java.lang.reflect.Field;
 import java.net.URISyntaxException;
@@ -23,10 +22,14 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 public class OpenLineageFlinkJobListener implements JobListener {
 
   private final StreamExecutionEnvironment executionEnvironment;
+  private final OpenLineageContinousJobTracker openLineageContinousJobTracker;
 
-  public OpenLineageFlinkJobListener(StreamExecutionEnvironment executionEnvironment) {
-    makeTransformationsArchivedList(executionEnvironment);
+  public OpenLineageFlinkJobListener(
+      StreamExecutionEnvironment executionEnvironment, String restApiUrl) {
+    this.openLineageContinousJobTracker = new OpenLineageContinousJobTracker(restApiUrl);
     this.executionEnvironment = executionEnvironment;
+
+    makeTransformationsArchivedList(executionEnvironment);
   }
 
   @Override
@@ -41,10 +44,15 @@ public class OpenLineageFlinkJobListener implements JobListener {
         List<Transformation<?>> transformations =
             ((ArchivedList<Transformation<?>>) transformationsField.get(executionEnvironment))
                 .getArchive();
-        ExecutionContext context =
-            new FlinkExecutionContext(jobClient.getJobID(), new EventEmitter(args));
+        FlinkExecutionContext context =
+            new FlinkExecutionContext(
+                jobClient.getJobID(), new EventEmitter(args), transformations);
 
-        context.onJobSubmitted(jobClient, transformations);
+        context.onJobSubmitted();
+
+        // start tracker
+        log.info("OpenLineageContinousJobTracker is starting");
+        openLineageContinousJobTracker.startTracking(context);
       } catch (URISyntaxException e) {
         log.error("Unable to parse open lineage endpoint. Lineage events will not be collected", e);
       } catch (IllegalAccessException e) {

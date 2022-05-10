@@ -6,6 +6,8 @@ import org.apache.flink.core.execution.JobListener;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import java.time.Duration;
+
 import static io.openlineage.kafka.KafkaClientProvider.aKafkaSink;
 import static io.openlineage.kafka.KafkaClientProvider.aKafkaSource;
 import static org.apache.flink.api.common.eventtime.WatermarkStrategy.noWatermarks;
@@ -34,8 +36,10 @@ public class FlinkStatefulApplication {
 
         // we use this app to test open lineage flink integration so it cannot make use of OpenLineageFlinkJobListener classes
         JobListener openlineageJobListener = (JobListener) Class.forName("io.openlineage.flink.OpenLineageFlinkJobListener")
-                .getConstructor(StreamExecutionEnvironment.class)
-                    .newInstance(env);
+                .getConstructor(StreamExecutionEnvironment.class, String.class)
+                    .newInstance(
+                        env,
+                        parameters.getRequired("jobmanager-api-url"));
 
         env.registerJobListener(openlineageJobListener);
         env.execute("flink-examples-stateful");
