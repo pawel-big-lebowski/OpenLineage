@@ -1,0 +1,88 @@
+name: Build & Deploy spec to Github Pages
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      # testing only, not allowed to run on OpenLineage/OpenLineage repo
+      - docs-deploy
+
+permissions:
+  id-token: write
+
+jobs:
+  site-deploy:
+    name: Build and Publish To openlineage-site repo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: 'source'
+      - uses: actions/checkout@v4
+        with:
+          repository: 'pawel-big-lebowski/openlineage-site' # TODO: remove this
+          path: 'target'
+          token:  ${{ secrets.ACTIONS_GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: source/website/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'corretto'
+          java-version: '17'
+      - uses: shogo82148/actions-setup-perl@v1
+        with:
+          perl-version: "5.38"
+      - name: Regenerate Javadoc to website
+        run: |
+          cd source/client/java
+          ./gradlew javadoc
+          mkdir -p ../../website/static/apidocs/javadoc
+          cp -r build/docs/javadoc ../../website/static/apidocs
+      - name: Install dependencies
+        run:  |
+          cd source/website
+          yarn install --frozen-lockfile
+      - name: Generate openapi
+        run: |
+          SPEC_DIR="$(pwd)/source/website/static/spec"
+          APIDOC_DIR="$(pwd)/source/website/static/apidocs"
+          pushd $SPEC_DIR
+          LATEST_VERSION=$(find . -maxdepth 1 | grep -v 'facets' | grep '[0-9]*-[0-9]-[0-9]' | sort -Vr | head -1)
+          echo latest version is $LATEST_VERSION
+          rm -f ./OpenLineage.json 2>/dev/null
+          perl -i -pe"s/version: [[:alnum:]\.-]*/version: ${LATEST_VERSION:2}/g" ./OpenLineage.yml
+          echo Versions updated
+          mkdir "${LATEST_VERSION}/facets"
+          for i in $(ls -d ./facets/* | sort); do cp $i/*.json ${LATEST_VERSION}/facets; done;
+
+          echo "LATEST_VERSION=${LATEST_VERSION}" >> "$GITHUB_ENV"
+
+          pushd $LATEST_VERSION
+          ln -sf ../OpenLineage.yml .
+          popd
+      - name: Generate redoc
+        run: |
+          npm install redoc-cli
+          yarn run redoc-cli build -o source/website/static/apidocs/openapi/index.html source/website/static/spec/$LATEST_VERSION/OpenLineage.yml --title "OpenLineage API Docs"
+      - name: Clean temp files
+        run: |
+          pushd source/website/static/spec/$LATEST_VERSION
+          rm -rf facets
+          rm OpenLineage.yml
+          popd
+      - name: Push target repo
+        run: |
+          rm -r target/* 
+          cp -r source/website/* target
+          cd target
+          git config user.name "GitHub Action Website Snapshot"
+          git config user.email "<>"
+          git add .
+          git commit -m "refreshing website content from main repo"
+          git push

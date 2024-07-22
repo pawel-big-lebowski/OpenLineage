@@ -1063,23 +1063,6 @@ jobs:
           paths:
             - ~/.gradle
 
-  # REST
-  publish-javadoc:
-    working_directory: ~/openlineage/client/java
-    docker:
-      - image: cimg/openjdk:17.0
-    steps:
-      - *checkout_project_root
-      - when:
-          condition:
-            equal: [ inactive, << pipeline.parameters.nightly-run >> ]
-          steps:
-            - add_ssh_keys:
-                fingerprints:
-                  - "7d:bc:78:35:09:c9:25:04:63:f9:eb:4b:f1:f4:d1:91"
-            - run: ./gradlew --console=plain javadoc
-            - run: ./release-javadoc.sh
-
   publish-spec:
     working_directory: ~/openlineage
     docker:
