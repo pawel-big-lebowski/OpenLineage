@@ -1,0 +1,43 @@
+name: 'Reusable site deploy workflow'
+
+on:
+  workflow_call:
+    inputs:
+      branch:
+        required: true
+        type: string
+
+jobs:
+  site-deploy:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: "npm"
+          cache-dependency-path: website/package-lock.json
+      - name: Install dependencies
+        run:  |
+          cd website
+          yarn install --frozen-lockfile
+      - name: Build openapi docs
+        run:  |
+          cd website
+          yarn run build:docs
+      - name: Build website
+        run: |
+          cd website
+          yarn build
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './website/build'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
