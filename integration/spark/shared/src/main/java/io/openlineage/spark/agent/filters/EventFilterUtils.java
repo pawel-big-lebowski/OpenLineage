@@ -7,8 +7,10 @@ package io.openlineage.spark.agent.filters;
 
 import io.openlineage.spark.agent.util.SparkSessionUtils;
 import io.openlineage.spark.api.OpenLineageContext;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.spark.SparkContext;
 import org.apache.spark.scheduler.SparkListenerEvent;
@@ -19,17 +21,22 @@ import org.apache.spark.sql.execution.QueryExecution;
 @Slf4j
 public class EventFilterUtils {
 
+  private static List<EventFilterBuilder> filterBuilders =
+      new ArrayList<>(
+          Arrays.asList(
+              context -> new DeltaEventFilter(context),
+              context -> new DatabricksEventFilter(context),
+              context -> new SparkNodesFilter(context),
+              context -> new CreateViewFilter(context),
+              context -> new AdaptivePlanEventFilter(context)));
+
   /**
    * Method that verifies based on OpenLineageContext and SparkListenerEvent if OpenLineage event
    * has to be sent.
    */
   public static boolean isDisabled(OpenLineageContext context, SparkListenerEvent event) {
-    return Stream.of(
-            new DeltaEventFilter(context),
-            new DatabricksEventFilter(context),
-            new SparkNodesFilter(context),
-            new CreateViewFilter(context),
-            new AdaptivePlanEventFilter(context))
+    return filterBuilders.stream()
+        .map(builder -> builder.build(context))
         .anyMatch(
             filter -> {
               boolean isDisabled = filter.isDisabled(event.getClass().cast(event));
@@ -48,6 +55,11 @@ public class EventFilterUtils {
               }
               return isDisabled;
             });
+  }
+
+  /** Method that allows registering custom extra filter programmatically. */
+  public static void registerEventFilterBuilder(EventFilterBuilder builder) {
+    filterBuilders.add(builder);
   }
 
   static Optional<LogicalPlan> getLogicalPlan(OpenLineageContext context) {
