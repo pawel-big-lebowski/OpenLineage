@@ -33,6 +33,7 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.SparkSession$;
 import org.apache.spark.sql.types.LongType$;
 import org.apache.spark.sql.types.Metadata;
+import org.apache.spark.sql.types.StringType$;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.junit.jupiter.api.AfterAll;
@@ -47,7 +48,7 @@ import org.mockserver.integration.ClientAndServer;
 @Tag("integration-test")
 @Tag("google-cloud")
 @Slf4j
-@EnabledIfEnvironmentVariable(named = "CI", matches = "true")
+//@EnabledIfEnvironmentVariable(named = "CI", matches = "true")
 // TODO: Please note the test remains disabled for Spark 4.0 for now (no applicable connector
 // version available)
 class GoogleCloudIntegrationTest {
@@ -216,50 +217,75 @@ class GoogleCloudIntegrationTest {
       matches = SPARK_3_3) // Spark version == 3.*
   void testDuplicateInputs() {
     String source1_table =
-        String.format("%s.%s.%s_source_query_duplicates1", PROJECT_ID, DATASET_ID, VERSION_NAME);
+        String.format("%s.%s.%s_query_duplicates1", PROJECT_ID, DATASET_ID, VERSION_NAME);
     String source2_table =
-        String.format("%s.%s.%s_source_query_duplicates2", PROJECT_ID, DATASET_ID, VERSION_NAME);
+        String.format("%s.%s.%s_query_duplicates2", PROJECT_ID, DATASET_ID, VERSION_NAME);
     String target_table =
-        String.format("%s.%s.%s_target_query_duplicates", PROJECT_ID, DATASET_ID, VERSION_NAME);
-    String source_query1 = String.format("SELECT * FROM %s", source1_table);
-    String source_query2 = String.format("SELECT * FROM %s", source2_table);
-    log.info("Source Query: {}", source_query1);
-    log.info("Source Query: {}", source_query2);
-    log.info("Target Table: {}", target_table);
+        String.format("%s.%s.%s_target_duplicates", PROJECT_ID, DATASET_ID, VERSION_NAME);
+    log.info("Source Table 1: {}", source1_table);
+    log.info("Source Table 2: {}", source2_table);
 
-    Dataset<Row> dataset = getTestDataset();
-    dataset.write().format("bigquery").option("table", source1_table).mode("overwrite").save();
-    dataset.write().format("bigquery").option("table", source2_table).mode("overwrite").save();
-
-    Dataset<Row> table1 =
-        spark
-            .read()
-            .format("bigquery")
-            .option("viewMaterializationProject", PROJECT_ID)
-            .option("viewMaterializationDataset", DATASET_ID)
-            .option("viewsEnabled", "true")
-            .option("query", source_query1)
-            .load();
-
-    Dataset<Row> table2 =
-        spark
-            .read()
-            .format("bigquery")
-            .option("viewMaterializationProject", PROJECT_ID)
-            .option("viewMaterializationDataset", DATASET_ID)
-            .option("viewsEnabled", "true")
-            .option("query", source_query2)
-            .load();
-
-    table1
-        .as("t1") // alias causing duplicate dataset
-        .join(
-            table2.as("t2"), // alias causing duplicate dataset,
-            table1.col("a").equalTo(table2.col("b")),
-            "left_outer")
-        .select(table1.col("a"), table2.col("a").as("b"))
+    spark
+        .createDataFrame(
+            ImmutableList.of(
+                RowFactory.create("1", "John", 25L),
+                RowFactory.create("2", "Alice", 30L),
+                RowFactory.create("3", "Bob", 35L)
+            ),
+            new StructType(
+                new StructField[] {
+                    new StructField("person_id", StringType$.MODULE$, false, Metadata.empty()),
+                    new StructField("name", StringType$.MODULE$, false, Metadata.empty()),
+                    new StructField("age", LongType$.MODULE$, false, Metadata.empty())
+                }))
         .write()
         .format("bigquery")
+        .option("writeMethod", "DIRECT")
+        .option("createDisposition","CREATE_IF_NEEDED")
+        .option("table", source1_table)
+        .mode("overwrite")
+        .save();
+
+    spark
+        .createDataFrame(
+            ImmutableList.of(
+                RowFactory.create("1", "USA"),
+                RowFactory.create("2", "UK"),
+                RowFactory.create("3", "Canada")
+            ),
+            new StructType(
+                new StructField[] {
+                    new StructField("id", StringType$.MODULE$, false, Metadata.empty()),
+                    new StructField("country", StringType$.MODULE$, false, Metadata.empty())
+                }))
+        .write()
+        .format("bigquery")
+        .option("writeMethod", "DIRECT")
+        .option("createDisposition","CREATE_IF_NEEDED")
+        .option("table", source2_table)
+        .mode("overwrite").save();
+
+    Dataset<Row> df1 = spark
+        .read()
+        .format("bigquery")
+        .option("table", source1_table)
+        .load();
+
+    Dataset<Row> df2 = spark
+        .read()
+        .format("bigquery")
+        .option("table", source2_table)
+        .load();
+
+    df1.as("t1")
+        .join(
+            df2.as("t2"),
+            df1.col("person_id").equalTo(df2.col("id")),
+            "left_outer")
+        .write()
+        .format("bigquery")
+        .option("writeMethod", "DIRECT")
+        .option("createDisposition","CREATE_IF_NEEDED")
         .option("table", target_table)
         .mode("overwrite")
         .save();

@@ -6,6 +6,7 @@
 package com.google.cloud.bigquery.connector.common;
 
 import com.google.cloud.spark.bigquery.repackaged.com.google.cloud.bigquery.BigQuery;
+import com.google.cloud.spark.bigquery.repackaged.com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.spark.bigquery.repackaged.com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.spark.bigquery.repackaged.com.google.inject.Binder;
 import com.google.cloud.spark.bigquery.repackaged.com.google.inject.Module;
@@ -43,16 +44,18 @@ public class MockBigQueryClientModule implements Module {
         Optional.empty());
   }
 
-  @Provides
-  @Singleton
-  public BigQueryClient provideBigQueryClient() {
-    return new BigQueryClient(
-        bq,
-        Optional.of("materializationProject"),
-        Optional.of("materializationDataset"),
-        null,
-        Collections.emptyMap(),
-        QueryJobConfiguration.Priority.BATCH,
-        Optional.empty());
-  }
+//  @Provides
+//  @Singleton
+//  public BigQueryClient provideBigQueryClient() {
+//    return BigQueryOptions.getDefaultInstance().getService().cl;
+////    return new BigQueryClient(
+////        bq,
+////        Optional.of("materializationProject"),
+////        Optional.of("materializationDataset"),
+////        null,
+////        Collections.emptyMap(),
+////        QueryJobConfiguration.Priority.BATCH,
+////        Optional.empty(),
+////        10L);
+//  }
 }
